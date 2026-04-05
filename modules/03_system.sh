@@ -108,7 +108,9 @@ alias localip='hostname -I | cut -d" " -f1'
 # @desc  One-line system overview: CPU cores, RAM, disk free
 # @usage sysinfo
 # @example sysinfo
-alias sysinfo='echo "CPU:$(nproc) cores | RAM:$(free -h | awk "/Mem/{print \$2}") | Disk:$(df -h / | awk "NR==2{print \$4}") free"'
+sysinfo() {
+    echo "CPU:$(nproc) cores | RAM:$(free -h | awk '/Mem/{print $2}') | Disk:$(df -h / | awk 'NR==2{print $4}') free"
+}
 
 ## aliases
 # @desc  View ~/.bash_aliases with pagination
