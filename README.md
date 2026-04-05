@@ -15,10 +15,21 @@ A comprehensive, modular open-source Bash alias toolkit designed for all Linux e
 
 ## Installation
 
-Run this one-liner to install:
+## Install
+
+**Linux / macOS / WSL (Windows):**
 ```bash
 curl -sL https://raw.githubusercontent.com/blackstart-labs/aliaskit/main/install.sh | bash
 ```
+
+The installer auto-detects your OS and injects into the correct shell profile:
+
+| Platform | Shell Profile | APT Hook |
+| :--- | :--- | :--- |
+| Ubuntu / Debian | `~/.bashrc` | ✅ Optional |
+| Arch / Fedora / Other Linux | `~/.bashrc` | ❌ Skipped |
+| macOS (Zsh) | `~/.zprofile` | ❌ N/A |
+| WSL / Git Bash | `~/.bashrc` | ✅ Optional |
 To remove all scripts, configs, and APT background hooks:
 ```bash
 bash ~/.aliaskit/uninstall.sh
