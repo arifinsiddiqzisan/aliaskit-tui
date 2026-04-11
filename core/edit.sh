@@ -27,7 +27,28 @@ escape_single_quotes() {
 prompt_with_default() {
     local label="$1"
     local def="$2"
-    local value
+    local value out
+
+    if command -v fzf >/dev/null 2>&1; then
+        out=$(printf '\n' | fzf \
+            --height=95% \
+            --layout=reverse \
+            --border \
+            --phony \
+            --prompt="${label} > " \
+            --header="ak edit • Enter value (ESC to cancel)" \
+            --bind='enter:accept' \
+            --print-query \
+            --query="$def") || return 1
+        value=$(printf "%s\n" "$out" | head -n1)
+        if [[ -z "$value" ]]; then
+            echo "$def"
+        else
+            echo "$value"
+        fi
+        return 0
+    fi
+
     read -r -p "$label [$def]: " value
     if [[ -z "$value" ]]; then
         echo "$def"
@@ -177,7 +198,7 @@ while true; do
 
     case "$action" in
         "Edit module name")
-            new_name_raw=$(prompt_with_default "New module name" "$module_name")
+            new_name_raw=$(prompt_with_default "New module name" "$module_name") || continue
             new_name=$(ak_slugify "$new_name_raw")
             if ! ak_validate_module_name "$new_name"; then
                 print_color red "Invalid module name format."
@@ -194,11 +215,11 @@ while true; do
             module_name="$new_name"
             ;;
         "Edit category")
-            category=$(prompt_with_default "Category" "$category")
+            category=$(prompt_with_default "Category" "$category") || continue
             ;;
         "Add command")
             while true; do
-                cmd=$(prompt_with_default "Custom command" "")
+                cmd=$(prompt_with_default "Custom command" "") || { print_color yellow "Cancelled adding command."; break; }
                 [[ -n "$cmd" ]] || { print_color red "Command cannot be empty."; continue; }
                 if ! ak_validate_command_name "$cmd"; then
                     print_color red "Invalid command format."
@@ -214,10 +235,11 @@ while true; do
                 fi
                 break
             done
-            genuine=$(prompt_with_default "Genuine command" "")
-            desc=$(prompt_with_default "Description" "")
-            usage=$(prompt_with_default "Usage" "$cmd")
-            example=$(prompt_with_default "Example" "$cmd")
+            [[ -n "$cmd" ]] || continue
+            genuine=$(prompt_with_default "Genuine command" "") || continue
+            desc=$(prompt_with_default "Description" "") || continue
+            usage=$(prompt_with_default "Usage" "$cmd") || continue
+            example=$(prompt_with_default "Example" "$cmd") || continue
             CMDS+=("$cmd")
             GENUINES+=("$genuine")
             DESCS+=("$desc")
@@ -233,7 +255,7 @@ while true; do
             [[ -n "$selected_cmd" ]] || continue
             idx=$(find_cmd_index "$selected_cmd") || continue
 
-            new_cmd=$(prompt_with_default "Custom command" "${CMDS[$idx]}")
+            new_cmd=$(prompt_with_default "Custom command" "${CMDS[$idx]}") || continue
             if [[ "$new_cmd" != "${CMDS[$idx]}" ]]; then
                 if ! ak_validate_command_name "$new_cmd"; then
                     print_color red "Invalid command format."
@@ -250,10 +272,10 @@ while true; do
                 CMDS[$idx]="$new_cmd"
             fi
 
-            GENUINES[$idx]=$(prompt_with_default "Genuine command" "${GENUINES[$idx]}")
-            DESCS[$idx]=$(prompt_with_default "Description" "${DESCS[$idx]}")
-            USAGES[$idx]=$(prompt_with_default "Usage" "${USAGES[$idx]}")
-            EXAMPLES[$idx]=$(prompt_with_default "Example" "${EXAMPLES[$idx]}")
+            GENUINES[$idx]=$(prompt_with_default "Genuine command" "${GENUINES[$idx]}") || continue
+            DESCS[$idx]=$(prompt_with_default "Description" "${DESCS[$idx]}") || continue
+            USAGES[$idx]=$(prompt_with_default "Usage" "${USAGES[$idx]}") || continue
+            EXAMPLES[$idx]=$(prompt_with_default "Example" "${EXAMPLES[$idx]}") || continue
             ;;
         "Delete command")
             if [[ ${#CMDS[@]} -eq 0 ]]; then
@@ -301,18 +323,24 @@ while true; do
             fi
 
             ak_write_custom_index
+            # shellcheck source=/dev/null
+            source /home/zisan/Downloads/aliaskit-tui/core/init.sh >/dev/null 2>&1 || true
             print_color green "✔ Saved module: ${module_name}"
-            print_color yellow "Run 'ak reload' to apply updates in current shell."
+            print_color green "✔ Auto executed: source /home/zisan/Downloads/aliaskit-tui/core/init.sh"
             exit 0
             ;;
         "Delete module")
             read -r -p "Type YES to delete module '${module_name}': " confirm
-            if [[ "$confirm" == "YES" ]]; then
+            if [[ "$confirm" =~ ^([Yy][Ee][Ss]|[Yy])$ ]]; then
                 rm -f "$module_file" "${AK_CUSTOM_DOC_MODULE_DIR}/${prefix}_${selected_module}.md" "${AK_CUSTOM_DOC_MODULE_DIR}/${prefix}_${module_name}.md"
                 ak_write_custom_index
+                # shellcheck source=/dev/null
+                source /home/zisan/Downloads/aliaskit-tui/core/init.sh >/dev/null 2>&1 || true
                 print_color green "✔ Module deleted: ${module_name}"
-                print_color yellow "Run 'ak reload' to apply updates in current shell."
+                print_color green "✔ Auto executed: source /home/zisan/Downloads/aliaskit-tui/core/init.sh"
                 exit 0
+            else
+                print_color yellow "Delete cancelled."
             fi
             ;;
         "Cancel"|"")

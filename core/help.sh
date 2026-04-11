@@ -88,6 +88,7 @@ function show_modules() {
 
 function get_module_file_by_name() {
     local target_module="$1"
+    target_module=$(printf "%s" "$target_module" | sed 's/[[:space:]]\+\[custom\]$//')
     for module_file in "${AK_ROOT}/modules/"*.sh; do
         [[ -f "$module_file" ]] || continue
         local module_name
@@ -188,7 +189,11 @@ function show_help_tui() {
     local module_rows
     module_rows=$(iter_all_module_files | while IFS= read -r module_file; do
         module_name=$(basename "$module_file" | sed -E 's/^[0-9]+_//' | sed 's/\.sh$//')
-        printf "%s\n" "$module_name"
+        if [[ "$module_file" == "${AK_ROOT}/custom/modules/"* ]]; then
+            printf "%s [custom]\n" "$module_name"
+        else
+            printf "%s\n" "$module_name"
+        fi
     done | awk '!seen[$0]++')
 
     if [[ -z "$module_rows" ]]; then
@@ -206,7 +211,7 @@ function show_help_tui() {
             --preview-window='right:65%:wrap' \
             --preview "bash '${AK_ROOT}/core/help.sh' '__preview_module' {}") || return
 
-    selected_module="$selection"
+    selected_module=$(printf "%s" "$selection" | sed 's/[[:space:]]\+\[custom\]$//')
     [[ -n "$selected_module" ]] && show_module_help "$selected_module"
 }
 
