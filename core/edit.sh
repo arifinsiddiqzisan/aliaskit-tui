@@ -335,9 +335,9 @@ while true; do
                 rm -f "$module_file" "${AK_CUSTOM_DOC_MODULE_DIR}/${prefix}_${selected_module}.md" "${AK_CUSTOM_DOC_MODULE_DIR}/${prefix}_${module_name}.md"
                 ak_write_custom_index
                 # shellcheck source=/dev/null
-                source /home/zisan/Downloads/aliaskit-tui/core/init.sh >/dev/null 2>&1 || true
+                source ~/.aliaskit/core/init.sh >/dev/null 2>&1 || true
                 print_color green "✔ Module deleted: ${module_name}"
-                print_color green "✔ Auto executed: source /home/zisan/Downloads/aliaskit-tui/core/init.sh"
+                print_color green "✔ Auto executed: source ~/.aliaskit/core/init.sh"
                 exit 0
             else
                 print_color yellow "Delete cancelled."
