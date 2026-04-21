@@ -229,11 +229,11 @@ write_module_and_docs() {
     chmod +x "$module_file"
     ak_write_custom_index
     # shellcheck source=/dev/null
-    source /home/zisan/Downloads/aliaskit-tui/core/init.sh >/dev/null 2>&1 || true
+    source ~/.aliaskit/core/init.sh >/dev/null 2>&1 || true
     print_color green "✔ Custom module created: ${module_name}"
     echo "- Module file: ${module_file}"
     echo "- Doc file:    ${doc_file}"
-    print_color green "✔ Auto executed: source /home/zisan/Downloads/aliaskit-tui/core/init.sh"
+    print_color green "✔ Auto executed: source ~/.aliaskit/core/init.sh"
 }
 
 validate_complex_module_or_fail() {

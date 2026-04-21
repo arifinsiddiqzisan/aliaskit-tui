@@ -606,7 +606,7 @@ run_normal_edit_flow() {
 
                 ak_write_custom_index
                 # shellcheck source=/dev/null
-                source /home/zisan/Downloads/aliaskit-tui/core/init.sh >/dev/null 2>&1 || true
+
                 print_color green "✔ Saved module: ${module_name}"
                 print_color green "✔ Auto executed: source /home/zisan/Downloads/aliaskit-tui/core/init.sh"
                 return 0
@@ -836,3 +836,19 @@ case "$target_type" in
         exit 0
         ;;
 esac
+
+                source ~/.aliaskit/core/init.sh >/dev/null 2>&1 || true
+                print_color green "✔ Module deleted: ${module_name}"
+                print_color green "✔ Auto executed: source ~/.aliaskit/core/init.sh"
+                exit 0
+            else
+                print_color yellow "Delete cancelled."
+            fi
+            ;;
+        "Cancel"|"")
+            print_color yellow "Cancelled. No changes saved."
+            exit 0
+            ;;
+    esac
+done
+
