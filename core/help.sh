@@ -12,6 +12,11 @@ if [[ -f "${AK_ROOT}/core/registry.sh" ]]; then
     ak_registry_bootstrap
 fi
 
+if [[ -f "${AK_ROOT}/core/complex.sh" ]]; then
+    # shellcheck source=/dev/null
+    source "${AK_ROOT}/core/complex.sh"
+fi
+
 # Usage:
 # ak help -> list categories
 # ak help module_name -> list commands in category
@@ -47,6 +52,8 @@ function show_main_help() {
     echo "  ak update              - Check and install updates"
     echo "  ak reload              - Reload aliaskit configuration"
     echo "  ak add                 - Create a custom module via wizard"
+    echo "  ak add complex         - Create a complex custom command via wizard"
+    echo "  ak addc                - Shortcut for 'ak add complex'"
     echo "  ak edit                - Edit/delete custom modules"
     echo "  ak custom              - Show custom module status list"
     echo "  ak stats               - Show community stats"
@@ -68,6 +75,10 @@ function iter_all_module_files() {
         [[ -f "$module_file" ]] || continue
         echo "$module_file"
     done
+    for module_dir in "${AK_ROOT}/custom/modules/complex/"*; do
+        [[ -d "$module_dir" ]] || continue
+        echo "$module_dir [Complex]"
+    done
 }
 
 function show_modules() {
@@ -84,11 +95,30 @@ function show_modules() {
         module_name=$(basename "$module_file" | sed -E 's/^[0-9]+_//' | sed 's/\.sh$//')
         printf "  %-15s - %s [custom]\n" "$module_name" "${category:-Uncategorized}"
     done
+    for module_dir in "${AK_ROOT}/custom/modules/complex/"*; do
+        [[ -d "$module_dir" ]] || continue
+        module_name=$(basename "$module_dir")
+        printf "  %-15s - %s [Complex]\n" "$module_name" "Complex Custom Module"
+    done
+}
+
+function get_complex_module_dir_by_name() {
+    local target_module="$1"
+    target_module=$(printf "%s" "$target_module" | sed 's/[[:space:]]\+\[Complex\]$//')
+    local module_dir
+    for module_dir in "${AK_ROOT}/custom/modules/complex/"*; do
+        [[ -d "$module_dir" ]] || continue
+        if [[ "$(basename "$module_dir")" == "$target_module" ]]; then
+            echo "$module_dir"
+            return 0
+        fi
+    done
+    return 1
 }
 
 function get_module_file_by_name() {
     local target_module="$1"
-    target_module=$(printf "%s" "$target_module" | sed 's/[[:space:]]\+\[custom\]$//')
+    target_module=$(printf "%s" "$target_module" | sed 's/[[:space:]]\+\[custom\]$//' | sed 's/[[:space:]]\+\[Complex\]$//')
     for module_file in "${AK_ROOT}/modules/"*.sh; do
         [[ -f "$module_file" ]] || continue
         local module_name
@@ -108,6 +138,35 @@ function get_module_file_by_name() {
         fi
     done
     return 1
+}
+
+function render_complex_module_preview() {
+    local module_dir="$1"
+    local module_name command_file
+    module_name=$(basename "$module_dir")
+
+    print_color "cyan" "📦 Module: $module_name [Complex]"
+    echo "Category: Complex Custom Module"
+    echo "---------------------------------------------------"
+
+    for command_file in "$module_dir"/*/*.sh; do
+        [[ -f "$command_file" ]] || continue
+        awk '
+            /^## / { cmd = substr($0, 4); next }
+            /^# @desc/ { sub(/^# @desc[[:space:]]*/, "", $0); desc = $0; next }
+            /^# @usage/ { sub(/^# @usage[[:space:]]*/, "", $0); usage = $0; next }
+            /^# @example/ { sub(/^# @example[[:space:]]*/, "", $0); example = $0; next }
+            END {
+                if (cmd != "") {
+                    printf "\033[32m%s\033[0m\n", cmd
+                    if (desc != "") printf "  desc: %s\n", desc
+                    if (usage != "") printf "  usage: %s\n", usage
+                    if (example != "") printf "  ex: %s\n", example
+                    printf "\n"
+                }
+            }
+        ' "$command_file"
+    done
 }
 
 function render_module_preview_from_file() {
@@ -188,11 +247,16 @@ function show_help_tui() {
 
     local module_rows
     module_rows=$(iter_all_module_files | while IFS= read -r module_file; do
-        module_name=$(basename "$module_file" | sed -E 's/^[0-9]+_//' | sed 's/\.sh$//')
-        if [[ "$module_file" == "${AK_ROOT}/custom/modules/"* ]]; then
-            printf "%s [custom]\n" "$module_name"
+        if [[ "$module_file" == *" [Complex]" ]]; then
+            module_name=$(basename "${module_file% \[Complex\]}")
+            printf "%s [Complex]\n" "$module_name"
         else
-            printf "%s\n" "$module_name"
+            module_name=$(basename "$module_file" | sed -E 's/^[0-9]+_//' | sed 's/\.sh$//')
+            if [[ "$module_file" == "${AK_ROOT}/custom/modules/"* ]]; then
+                printf "%s [custom]\n" "$module_name"
+            else
+                printf "%s\n" "$module_name"
+            fi
         fi
     done | awk '!seen[$0]++')
 
@@ -211,7 +275,7 @@ function show_help_tui() {
             --preview-window='right:65%:wrap' \
             --preview "bash '${AK_ROOT}/core/help.sh' '__preview_module' {}") || return
 
-    selected_module=$(printf "%s" "$selection" | sed 's/[[:space:]]\+\[custom\]$//')
+    selected_module=$(printf "%s" "$selection" | sed 's/[[:space:]]\+\[custom\]$//' | sed 's/[[:space:]]\+\[Complex\]$//')
     [[ -n "$selected_module" ]] && show_module_help "$selected_module"
 }
 
@@ -221,6 +285,8 @@ function show_module_help() {
 
     if module_file=$(get_module_file_by_name "$target_module"); then
         render_module_preview_from_file "$module_file"
+    elif module_dir=$(get_complex_module_dir_by_name "$target_module"); then
+        render_complex_module_preview "$module_dir"
     else
         print_color "red" "Module not found: $target_module"
         echo "Use 'ak modules' to see available modules."
@@ -274,6 +340,29 @@ function search_aliases() {
             echo ""
         fi
     done
+
+    local command_file module_name results
+    for command_file in "${AK_ROOT}/custom/modules/complex/"*/*/*.sh; do
+        [[ -f "$command_file" ]] || continue
+        module_name=$(basename "$(dirname "$(dirname "$command_file")")")
+        results=$(awk -v term="$term" '
+            BEGIN { cmd = desc = "" }
+            /^## / { cmd = substr($0, 4); next }
+            /^# @desc/ { sub(/^# @desc[[:space:]]*/, "", $0); desc = $0; next }
+            END {
+                cmd_lower=tolower(cmd); desc_lower=tolower(desc); term_lower=tolower(term)
+                if (index(cmd_lower, term_lower) || index(desc_lower, term_lower)) {
+                    printf "\033[32m  %-18s\033[0m %s\n", cmd, desc
+                }
+            }
+        ' "$command_file")
+        if [[ -n "$results" ]]; then
+            found=1
+            print_color "yellow" "[$module_name] [Complex]:"
+            echo "$results"
+            echo ""
+        fi
+    done
     
     if [[ $found -eq 0 ]]; then
         echo "No aliases found matching '$term'."
@@ -286,6 +375,8 @@ case "$COMMAND" in
             preview_module_file=$(get_module_file_by_name "$SUBCMD")
             if [[ -n "$preview_module_file" ]]; then
                 render_module_preview_from_file "$preview_module_file"
+            elif preview_module_dir=$(get_complex_module_dir_by_name "$SUBCMD"); then
+                render_complex_module_preview "$preview_module_dir"
             else
                 print_color "red" "Module not found: $SUBCMD"
             fi
@@ -315,6 +406,9 @@ case "$COMMAND" in
         ;;
     add)
         bash "${AK_ROOT}/core/add.sh" "$SUBCMD"
+        ;;
+    addc)
+        bash "${AK_ROOT}/core/addc.sh" "$SUBCMD"
         ;;
     edit)
         bash "${AK_ROOT}/core/edit.sh" "$SUBCMD"

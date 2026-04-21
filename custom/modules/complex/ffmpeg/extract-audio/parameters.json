@@ -1,0 +1,21 @@
+{
+  "module_name": "ffmpeg",
+  "category": "complex",
+  "module_description": "complex",
+  "command_name": "extract-audio",
+  "genuine_command": "ffmpeg -i [input] -vn -c:a {type} [output]",
+  "custom_command": "extract-audio [input] [output] {type}",
+  "description": "complex",
+  "usage": "extract-audio",
+  "example": "extract-audio",
+  "pre_parameters": {
+    "type": {
+      "mp3": "libmp3lame",
+      "wav": "pcm_s16le"
+    }
+  },
+  "post_parameters": [
+    "input",
+    "output"
+  ]
+}

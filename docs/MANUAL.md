@@ -84,3 +84,92 @@ alias ec2='aws ec2 describe-instances --filters "Name=instance-state-name,Values
 - `# @desc` displays the explanation explicitly in the CLI.
 
 Once completed, append `AK_ENABLE_AWS=true` to `config/aliaskit.conf.default` and you are completely verified!
+
+---
+
+## 🧠 Complex Custom Commands
+
+Aliaskit now supports a second custom-command flow for advanced wrappers:
+
+- `ak add` → normal simple custom module/alias flow
+- `ak add complex` or `ak addc` → multi-step complex command flow
+
+### Complex storage layout
+
+```text
+custom/
+├── docs/
+│   └── modules/
+│       └── complex/
+│           └── <module-name>/
+│               └── <command-name>.md
+└── modules/
+    └── complex/
+        └── <module-name>/
+            └── <command-name>/
+                ├── <command-name>.sh
+                └── parameters.json
+```
+
+### Wizard flow
+
+The complex wizard is split into two stages:
+
+1. **Module stage**
+   - Module Name
+   - Category
+   - Description
+
+2. **Command stage**
+   - Command Name
+   - Genuine Command
+   - Post Parameters
+   - Pre Parameters
+   - Custom Command
+   - Description
+   - Usage
+   - Example
+
+### Parameter system
+
+- `[...]` = **Post Parameters** (runtime/user-provided)
+- `{...}` = **Pre Parameters** (mapped constants)
+
+Example:
+
+```bash
+ffmpeg -i [input] -vn -c:a {type} [output]
+```
+
+This auto-detects:
+
+- Post parameters: `input`, `output`
+- Pre parameters: `type`
+
+### Execution modes
+
+Complex commands support both forms:
+
+```bash
+extract-audio input="/path/video.mp4" output="/path/audio.mp3" type="mp3"
+```
+
+In this mode, argument order does **not** matter.
+
+```bash
+extract-audio "/path/video.mp4" "/path/audio.mp3" "mp3"
+```
+
+In this mode, argument order **must match** the placeholder order used in the custom command template.
+
+### Behavior rules
+
+- `{type}` maps symbolic values to real command constants using `parameters.json`
+- `[input.ext]` enforces file extension validation
+- `[input]` allows any file type
+- `[output]` uses `{type}` to derive output extension when type is present
+- `[output.ext]` preserves explicit extension when no `{type}` mapping is involved
+
+### Help integration
+
+Complex modules appear in `ak help`, `ak modules`, and `ak custom` with a `[Complex]` tag so they remain visually distinct from normal custom modules.

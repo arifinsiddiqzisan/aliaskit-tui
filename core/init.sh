@@ -43,6 +43,11 @@ if [[ -f "${AK_ROOT}/core/registry.sh" ]]; then
     ak_registry_bootstrap
 fi
 
+if [[ -f "${AK_ROOT}/core/complex.sh" ]]; then
+    # shellcheck source=/dev/null
+    source "${AK_ROOT}/core/complex.sh"
+fi
+
 # Source enabled modules
 for module_file in "${AK_ROOT}/modules/"*.sh; do
     if [[ -f "$module_file" ]]; then
@@ -62,13 +67,26 @@ if declare -f ak_source_custom_modules_with_conflict_guard >/dev/null 2>&1; then
     ak_source_custom_modules_with_conflict_guard
 fi
 
+if declare -f ak_collect_complex_command_paths >/dev/null 2>&1; then
+    while IFS= read -r complex_command_file; do
+        [[ -f "$complex_command_file" ]] || continue
+        complex_command_name=$(awk '/^## /{ print substr($0,4); exit }' "$complex_command_file")
+        if [[ -n "$complex_command_name" ]] && ak_command_exists_official "$complex_command_name"; then
+            continue
+        fi
+        # shellcheck source=/dev/null
+        source "$complex_command_file"
+    done < <(ak_collect_complex_command_paths)
+    ak_write_custom_index
+fi
+
 # The root `ak` command router
 ak() {
     local cmd="${1:-help}"
     shift
 
     case "$cmd" in
-        help|search|list|modules|config|update|reload|stats|version|--version|-v|add|edit|custom)
+        help|search|list|modules|config|update|reload|stats|version|--version|-v|add|addc|edit|custom)
             if [[ "$cmd" == "version" || "$cmd" == "--version" || "$cmd" == "-v" ]]; then
                 bash "${AK_ROOT}/core/help.sh" "version"
             elif [[ -f "${AK_ROOT}/core/${cmd}.sh" ]]; then
