@@ -5,6 +5,8 @@
 AK_CUSTOM_ROOT="${AK_ROOT}/custom"
 AK_CUSTOM_MODULE_DIR="${AK_CUSTOM_ROOT}/modules"
 AK_CUSTOM_DOC_MODULE_DIR="${AK_CUSTOM_ROOT}/docs/modules"
+AK_COMPLEX_MODULE_ROOT="${AK_CUSTOM_MODULE_DIR}/complex"
+AK_COMPLEX_DOC_ROOT="${AK_CUSTOM_DOC_MODULE_DIR}/complex"
 AK_CUSTOM_INDEX_FILE="${AK_CUSTOM_ROOT}/index.tsv"
 
 AK_RESERVED_AK_COMMANDS=(
@@ -13,7 +15,7 @@ AK_RESERVED_AK_COMMANDS=(
 )
 
 ak_registry_bootstrap() {
-    mkdir -p "$AK_CUSTOM_MODULE_DIR" "$AK_CUSTOM_DOC_MODULE_DIR"
+    mkdir -p "$AK_CUSTOM_MODULE_DIR" "$AK_CUSTOM_DOC_MODULE_DIR" "$AK_COMPLEX_MODULE_ROOT" "$AK_COMPLEX_DOC_ROOT"
     touch "$AK_CUSTOM_INDEX_FILE"
 }
 
@@ -48,6 +50,14 @@ ak_collect_custom_module_names() {
     done
 }
 
+ak_collect_complex_module_names() {
+    local module_dir
+    for module_dir in "${AK_COMPLEX_MODULE_ROOT}/"*; do
+        [[ -d "$module_dir" ]] || continue
+        basename "$module_dir"
+    done
+}
+
 ak_module_exists_official() {
     local target="$1"
     ak_collect_official_module_names | grep -qx "$target"
@@ -58,9 +68,14 @@ ak_module_exists_custom() {
     ak_collect_custom_module_names | grep -qx "$target"
 }
 
+ak_module_exists_complex() {
+    local target="$1"
+    ak_collect_complex_module_names | grep -qx "$target"
+}
+
 ak_module_exists_any() {
     local target="$1"
-    ak_module_exists_official "$target" || ak_module_exists_custom "$target"
+    ak_module_exists_official "$target" || ak_module_exists_custom "$target" || ak_module_exists_complex "$target"
 }
 
 ak_collect_commands_from_dir() {
@@ -80,6 +95,27 @@ ak_collect_custom_commands() {
     ak_collect_commands_from_dir "${AK_CUSTOM_MODULE_DIR}"
 }
 
+ak_collect_complex_command_paths() {
+    local module_dir command_dir command_file
+    for module_dir in "${AK_COMPLEX_MODULE_ROOT}/"*; do
+        [[ -d "$module_dir" ]] || continue
+        for command_dir in "$module_dir/"*; do
+            [[ -d "$command_dir" ]] || continue
+            command_file="$command_dir/$(basename "$command_dir").sh"
+            [[ -f "$command_file" ]] || continue
+            echo "$command_file"
+        done
+    done
+}
+
+ak_collect_complex_commands() {
+    local command_file
+    while IFS= read -r command_file; do
+        [[ -f "$command_file" ]] || continue
+        awk '/^## /{ print substr($0,4) }' "$command_file"
+    done < <(ak_collect_complex_command_paths)
+}
+
 ak_command_exists_official() {
     local target="$1"
     ak_collect_official_commands | grep -qx "$target"
@@ -90,9 +126,14 @@ ak_command_exists_custom() {
     ak_collect_custom_commands | grep -qx "$target"
 }
 
+ak_command_exists_complex() {
+    local target="$1"
+    ak_collect_complex_commands | grep -qx "$target"
+}
+
 ak_command_exists_any() {
     local target="$1"
-    ak_command_exists_official "$target" || ak_command_exists_custom "$target"
+    ak_command_exists_official "$target" || ak_command_exists_custom "$target" || ak_command_exists_complex "$target"
 }
 
 ak_slugify() {
@@ -211,6 +252,40 @@ ak_get_custom_module_file_by_name() {
     return 1
 }
 
+ak_get_complex_command_file() {
+    local module_name="$1"
+    local command_name="$2"
+    local command_file="${AK_COMPLEX_MODULE_ROOT}/${module_name}/${command_name}/${command_name}.sh"
+    [[ -f "$command_file" ]] && echo "$command_file"
+}
+
+ak_get_complex_parameters_file() {
+    local module_name="$1"
+    local command_name="$2"
+    local parameters_file="${AK_COMPLEX_MODULE_ROOT}/${module_name}/${command_name}/parameters.json"
+    [[ -f "$parameters_file" ]] && echo "$parameters_file"
+}
+
+ak_extract_complex_entry_from_file() {
+    local module_name="$1"
+    local command_file="$2"
+    local parameters_file command_name desc usage example genuine custom category path
+    command_name=$(basename "$command_file" .sh)
+    parameters_file="$(dirname "$command_file")/parameters.json"
+    desc=$(grep -m 1 '^# @desc' "$command_file" | sed 's/^# @desc[[:space:]]*//')
+    usage=$(grep -m 1 '^# @usage' "$command_file" | sed 's/^# @usage[[:space:]]*//')
+    example=$(grep -m 1 '^# @example' "$command_file" | sed 's/^# @example[[:space:]]*//')
+    category=$(grep -m 1 '^# CATEGORY:' "$command_file" | sed 's/^# CATEGORY:[[:space:]]*//')
+    genuine=""
+    custom=""
+    if [[ -f "$parameters_file" ]] && command -v jq >/dev/null 2>&1; then
+        genuine=$(jq -r '.genuine_command // empty' "$parameters_file")
+        custom=$(jq -r '.custom_command // empty' "$parameters_file")
+    fi
+    path="$command_file"
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$command_name" "$category" "$desc" "$usage" "$example" "$genuine" "$custom"
+}
+
 ak_filter_custom_module_for_source() {
     local module_file="$1"
     local conflict_pipe="$2"
@@ -265,6 +340,22 @@ ak_write_custom_index() {
                 fi
                 echo -e "command\t${module_name}\t${cmd}\t${genuine}\t${cmd_status}\t${desc}\t${usage}\t${example}\t${module_file}"
             done < <(ak_extract_entries_from_module_file "$module_file")
+        done
+
+        local complex_module_dir complex_module_name complex_command_file complex_category complex_desc complex_usage complex_example complex_genuine complex_custom
+        for complex_module_dir in "${AK_COMPLEX_MODULE_ROOT}/"*; do
+            [[ -d "$complex_module_dir" ]] || continue
+            complex_module_name=$(basename "$complex_module_dir")
+            complex_category="Complex"
+            echo -e "module\t${complex_module_name}\t${complex_category}\t-\tactive [complex]\t-\t-\t-\t${complex_module_dir}"
+
+            while IFS= read -r complex_command_file; do
+                [[ -f "$complex_command_file" ]] || continue
+                while IFS=$'\t' read -r cmd category desc usage example genuine custom; do
+                    [[ -n "$cmd" ]] || continue
+                    echo -e "command\t${complex_module_name}\t${cmd}\t${genuine}\tactive [complex]\t${desc}\t${usage}\t${example}\t${complex_command_file}"
+                done < <(ak_extract_complex_entry_from_file "$complex_module_name" "$complex_command_file")
+            done < <(find "$complex_module_dir" -mindepth 2 -maxdepth 2 -type f -name '*.sh' | sort)
         done
     } > "$AK_CUSTOM_INDEX_FILE"
 }

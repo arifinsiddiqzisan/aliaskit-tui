@@ -22,7 +22,7 @@ print_color() {
 ak_registry_bootstrap
 ak_write_custom_index
 
-if [[ ! -s "$AK_CUSTOM_INDEX_FILE" ]]; then
+if [[ ! -s "$AK_CUSTOM_INDEX_FILE" || $(wc -l < "$AK_CUSTOM_INDEX_FILE") -le 1 ]]; then
     print_color yellow "No custom entries found. Use 'ak add' first."
     exit 0
 fi
