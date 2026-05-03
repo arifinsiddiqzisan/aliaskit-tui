@@ -240,7 +240,7 @@ write_module_and_docs() {
     print_color green "✔ Custom module created: ${module_name}"
     echo "- Module file: ${module_file}"
     echo "- Doc file:    ${doc_file}"
-    print_color green "✔ Auto executed: source /home/zisan/Downloads/aliaskit-tui/core/init.sh"
+    print_color green "✔ Auto executed: source /home/$(whoami)/.aliaskit/core/init.sh"
 }
 
 validate_complex_module_or_fail() {

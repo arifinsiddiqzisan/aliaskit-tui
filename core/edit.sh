@@ -434,7 +434,7 @@ save_complex_module_state() {
     source /home/zisan/Downloads/aliaskit-tui/core/init.sh >/dev/null 2>&1 || true
     complex_original_module_name="$new_module"
     print_color green "✔ Saved complex module: ${new_module}"
-    print_color green "✔ Auto executed: source /home/zisan/Downloads/aliaskit-tui/core/init.sh"
+    print_color green "✔ Auto executed: source /home/$(whoami)/.aliaskit/core/init.sh"
     return 0
 }
 
@@ -617,7 +617,7 @@ run_normal_edit_flow() {
                 # shellcheck source=/dev/null
                 source /home/zisan/Downloads/aliaskit-tui/core/init.sh >/dev/null 2>&1 || true
                 print_color green "✔ Saved module: ${module_name}"
-                print_color green "✔ Auto executed: source /home/zisan/Downloads/aliaskit-tui/core/init.sh"
+                print_color green "✔ Auto executed: source /home/$(whoami)/.aliaskit/core/init.sh"
                 return 0
                 ;;
             "Delete module")
@@ -628,7 +628,7 @@ run_normal_edit_flow() {
                     # shellcheck source=/dev/null
                     source /home/zisan/Downloads/aliaskit-tui/core/init.sh >/dev/null 2>&1 || true
                     print_color green "✔ Module deleted: ${module_name}"
-                    print_color green "✔ Auto executed: source /home/zisan/Downloads/aliaskit-tui/core/init.sh"
+                    print_color green "✔ Auto executed: source /home/$(whoami)/.aliaskit/core/init.sh"
                     return 0
                 else
                     print_color yellow "Delete cancelled."
@@ -817,7 +817,7 @@ run_complex_edit_flow() {
                     # shellcheck source=/dev/null
                     source /home/zisan/Downloads/aliaskit-tui/core/init.sh >/dev/null 2>&1 || true
                     print_color green "✔ Complex module deleted: ${module_name}"
-                    print_color green "✔ Auto executed: source /home/zisan/Downloads/aliaskit-tui/core/init.sh"
+                    print_color green "✔ Auto executed: source /home/$(whoami)/.aliaskit/core/init.sh"
                     return 0
                 else
                     print_color yellow "Delete cancelled."
