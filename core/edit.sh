@@ -26,6 +26,10 @@ escape_single_quotes() {
     printf "%s" "$s" | sed "s/'/'\\''/g"
 }
 
+normalize_command_input() {
+    ak_normalize_command_name "$1"
+}
+
 prompt_with_default() {
     local label="$1"
     local def="$2"
@@ -99,7 +103,10 @@ write_module_file() {
             echo "# @desc  ${DESCS[$i]}"
             echo "# @usage ${USAGES[$i]}"
             echo "# @example ${EXAMPLES[$i]}"
-            echo "alias ${CMDS[$i]}='$(escape_single_quotes "${GENUINES[$i]}")'"
+            echo "# @genuine $(escape_single_quotes "${GENUINES[$i]}")"
+            if ! ak_command_is_multiword "${CMDS[$i]}"; then
+                echo "alias ${CMDS[$i]}='$(escape_single_quotes "${GENUINES[$i]}")'"
+            fi
             echo ""
         done
     } > "$module_file"
@@ -237,7 +244,7 @@ validate_complex_command_state_or_fail() {
         return 1
     }
 
-    if ! ak_validate_command_name "$command_name"; then
+    if ! ak_validate_single_token_command_name "$command_name"; then
         form_error="Invalid command name."
         return 1
     fi
@@ -502,6 +509,7 @@ run_normal_edit_flow() {
             "Add command")
                 while true; do
                     cmd=$(prompt_with_default "Custom command" "") || { print_color yellow "Cancelled adding command."; break; }
+                    cmd=$(normalize_command_input "$cmd")
                     [[ -n "$cmd" ]] || { print_color red "Command cannot be empty."; continue; }
                     if ! ak_validate_command_name "$cmd"; then
                         print_color red "Invalid command format."
@@ -538,6 +546,7 @@ run_normal_edit_flow() {
                 idx=$(find_cmd_index "$selected_cmd") || continue
 
                 new_cmd=$(prompt_with_default "Custom command" "${CMDS[$idx]}") || continue
+                new_cmd=$(normalize_command_input "$new_cmd")
                 if [[ "$new_cmd" != "${CMDS[$idx]}" ]]; then
                     if ! ak_validate_command_name "$new_cmd"; then
                         print_color red "Invalid command format."

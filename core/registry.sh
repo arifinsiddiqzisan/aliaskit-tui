@@ -34,6 +34,31 @@ ak_humanize_module_name() {
     }'
 }
 
+ak_trim_whitespace() {
+    local value="$1"
+    value="$(printf '%s' "$value" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+    printf '%s' "$value"
+}
+
+ak_normalize_command_name() {
+    local value
+    value=$(ak_trim_whitespace "$1")
+    value="$(printf '%s' "$value" | tr -s '[:space:]' ' ')"
+    printf '%s' "$value"
+}
+
+ak_command_is_multiword() {
+    local command_name
+    command_name=$(ak_normalize_command_name "$1")
+    [[ "$command_name" == *" "* ]]
+}
+
+ak_command_first_word() {
+    local command_name
+    command_name=$(ak_normalize_command_name "$1")
+    printf '%s' "${command_name%% *}"
+}
+
 ak_collect_official_module_names() {
     local module_file
     for module_file in "${AK_ROOT}/modules/"*.sh; do
@@ -148,6 +173,14 @@ ak_validate_module_name() {
 
 ak_validate_command_name() {
     local command_name="$1"
+    command_name=$(ak_normalize_command_name "$command_name")
+    [[ -n "$command_name" ]]
+    [[ "$command_name" =~ ^[a-zA-Z0-9._+-]+([[:space:]]+[a-zA-Z0-9._+-]+)*$ ]]
+}
+
+ak_validate_single_token_command_name() {
+    local command_name="$1"
+    command_name=$(ak_trim_whitespace "$command_name")
     [[ "$command_name" =~ ^[a-zA-Z0-9._+-]+$ ]]
 }
 
@@ -214,13 +247,19 @@ ak_extract_entries_from_module_file() {
             example = line
             next
         }
+        /^# @genuine/ {
+            line = $0
+            sub(/^# @genuine[[:space:]]*/, "", line)
+            genuine = line
+            next
+        }
         /^alias[[:space:]]+/ {
             line = $0
             sub(/^alias[[:space:]]+/, "", line)
             split(line, parts, "=")
             alias_name = parts[1]
             gsub(/[[:space:]]+/, "", alias_name)
-            if (alias_name == cmd) {
+            if (alias_name == cmd && genuine == "") {
                 genuine = substr(line, index(line, "=") + 1)
                 q = sprintf("%c", 39)
                 if (substr(genuine,1,1) == "\"" || substr(genuine,1,1) == q) {

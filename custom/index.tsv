@@ -1,4 +1,1 @@
 type	module	item	genuine	status	desc	usage	example	path
-module	ffmpeg	Complex	-	active [complex]	-	-	-	/home/zisan/Downloads/aliaskit-tui/custom/modules/complex/ffmpeg
-command	ffmpeg	compress-video	ffmpeg -i [input] -vcodec libx264 -crf {quality} [output]	active [complex]	it will compress any video	compress-video	compress-video [input] [output] {quality}	/home/zisan/Downloads/aliaskit-tui/custom/modules/complex/ffmpeg/compress-video/compress-video.sh
-command	ffmpeg	extract-audio	ffmpeg -i [input] -vn -c:a {type} [output]	active [complex]	complex	extract-audio	extract-audio	/home/zisan/Downloads/aliaskit-tui/custom/modules/complex/ffmpeg/extract-audio/extract-audio.sh

@@ -27,6 +27,10 @@ escape_single_quotes() {
     printf "%s" "$s" | sed "s/'/'\\''/g"
 }
 
+normalize_command_input() {
+    ak_normalize_command_name "$1"
+}
+
 input_box() {
     local label="$1"
     local header="$2"
@@ -195,7 +199,10 @@ write_module_and_docs() {
             echo "# @desc  ${DESCS[$i]}"
             echo "# @usage ${USAGES[$i]}"
             echo "# @example ${EXAMPLES[$i]}"
-            echo "alias ${CMDS[$i]}='$(escape_single_quotes "${GENUINES[$i]}")'"
+            echo "# @genuine $(escape_single_quotes "${GENUINES[$i]}")"
+            if ! ak_command_is_multiword "${CMDS[$i]}"; then
+                echo "alias ${CMDS[$i]}='$(escape_single_quotes "${GENUINES[$i]}")'"
+            fi
             echo ""
         done
     } > "$module_file"
@@ -323,7 +330,7 @@ validate_complex_command_or_fail() {
         form_error="All command fields are required."
         return 1
     }
-    if ! ak_validate_command_name "$command_name"; then
+    if ! ak_validate_single_token_command_name "$command_name"; then
         form_error="Invalid command name."
         return 1
     fi
@@ -360,7 +367,7 @@ run_normal_flow() {
         case "$selected" in
             "Module Name"* ) value=$(input_box "Module Name" "Enter module name" "$module_name") || continue; [[ -n "$value" ]] && module_name=$(ak_slugify "$value"); form_error="" ;;
             "Category"* ) value=$(input_box "Category" "Enter category/title" "$category") || continue; [[ -n "$value" ]] && category="$value"; form_error="" ;;
-            "Custom Command"* ) value=$(input_box "Custom Command" "Enter custom command" "$custom_cmd") || continue; [[ -n "$value" ]] && custom_cmd="$value"; form_error="" ;;
+            "Custom Command"* ) value=$(input_box "Custom Command" "Enter custom command (single or multi-word, e.g. bots up)" "$custom_cmd") || continue; [[ -n "$value" ]] && custom_cmd=$(normalize_command_input "$value"); form_error="" ;;
             "Genuine Command"* ) value=$(input_box "Genuine Command" "Enter genuine command" "$genuine_cmd") || continue; [[ -n "$value" ]] && genuine_cmd="$value"; form_error="" ;;
             "Description"* ) value=$(input_box "Description" "Enter description" "$desc") || continue; [[ -n "$value" ]] && desc="$value"; form_error="" ;;
             "Usage"* ) value=$(input_box "Usage" "Enter usage" "$usage") || continue; [[ -n "$value" ]] && usage="$value"; form_error="" ;;
@@ -412,7 +419,7 @@ run_complex_flow() {
             [[ -n "$form_error" ]] && header+="\n\n⚠ ${form_error}"
             selected=$(complex_command_menu "$header") || exit 0
             case "$selected" in
-                "Command Name"* ) value=$(input_box "Command Name" "Enter complex command name" "$command_name") || continue; [[ -n "$value" ]] && command_name="$value"; form_error="" ;;
+                "Command Name"* ) value=$(input_box "Command Name" "Enter complex command name" "$command_name") || continue; [[ -n "$value" ]] && command_name=$(normalize_command_input "$value"); form_error="" ;;
                 "Genuine Command"* ) value=$(input_box "Genuine Command" "Use [] for post params and {} for pre params" "$genuine_cmd") || continue; [[ -n "$value" ]] && genuine_cmd="$value"; refresh_complex_param_summaries; form_error="" ;;
                 "Post Parameters"* ) form_error="Post parameters are auto-detected from Genuine Command." ;;
                 "Pre Parameters"* )

@@ -48,6 +48,115 @@ if [[ -f "${AK_ROOT}/core/complex.sh" ]]; then
     source "${AK_ROOT}/core/complex.sh"
 fi
 
+declare -gA AK_NORMAL_CUSTOM_GENUINES=()
+declare -ga AK_NORMAL_CUSTOM_FIRST_WORDS=()
+
+ak_append_runtime_args_to_command() {
+    local base_command="$1"
+    shift
+    local final_command="$base_command"
+    local arg quoted
+    for arg in "$@"; do
+        printf -v quoted ' %q' "$arg"
+        final_command+="$quoted"
+    done
+    printf '%s' "$final_command"
+}
+
+ak_register_normal_custom_command() {
+    local command_name="$1"
+    local genuine_command="$2"
+    local first_word
+
+    command_name=$(ak_normalize_command_name "$command_name")
+    [[ -n "$command_name" && -n "$genuine_command" ]] || return 0
+
+    if ak_command_exists_official "$command_name"; then
+        return 0
+    fi
+
+    AK_NORMAL_CUSTOM_GENUINES["$command_name"]="$genuine_command"
+    first_word=$(ak_command_first_word "$command_name")
+    if ! printf '%s\n' "${AK_NORMAL_CUSTOM_FIRST_WORDS[@]}" | grep -qx "$first_word"; then
+        AK_NORMAL_CUSTOM_FIRST_WORDS+=("$first_word")
+    fi
+}
+
+ak_load_normal_custom_commands() {
+    local module_file cmd desc usage example genuine
+    for module_file in "${AK_CUSTOM_MODULE_DIR}/"*.sh; do
+        [[ -f "$module_file" ]] || continue
+        while IFS=$'\t' read -r cmd desc usage example genuine; do
+            [[ -n "$cmd" ]] || continue
+            ak_register_normal_custom_command "$cmd" "$genuine"
+        done < <(ak_extract_entries_from_module_file "$module_file")
+    done
+}
+
+__ak_dispatch_normal_custom_command() {
+    local first_word="$1"
+    shift
+
+    local phrase candidate candidate_tail candidate_count best_phrase="" best_count=0
+    local -a candidate_parts remaining_args=()
+
+    for phrase in "${!AK_NORMAL_CUSTOM_GENUINES[@]}"; do
+        [[ "$(ak_command_first_word "$phrase")" == "$first_word" ]] || continue
+
+        candidate="$phrase"
+        candidate_tail="${candidate#${first_word}}"
+        candidate_tail="${candidate_tail# }"
+
+        if [[ -z "$candidate_tail" ]]; then
+            candidate_count=1
+            if (( candidate_count > best_count )); then
+                best_phrase="$candidate"
+                best_count=$candidate_count
+            fi
+            continue
+        fi
+
+        read -r -a candidate_parts <<< "$candidate_tail"
+        if (( $# < ${#candidate_parts[@]} )); then
+            continue
+        fi
+
+        local i matched=1
+        for i in "${!candidate_parts[@]}"; do
+            if [[ "${candidate_parts[$i]}" != "${@:$((i+1)):1}" ]]; then
+                matched=0
+                break
+            fi
+        done
+
+        if (( matched == 1 )); then
+            candidate_count=$((1 + ${#candidate_parts[@]}))
+            if (( candidate_count > best_count )); then
+                best_phrase="$candidate"
+                best_count=$candidate_count
+            fi
+        fi
+    done
+
+    if [[ -n "$best_phrase" ]]; then
+        if (( $# >= best_count - 1 )); then
+            remaining_args=("${@:$best_count}")
+        fi
+        eval "$(ak_append_runtime_args_to_command "${AK_NORMAL_CUSTOM_GENUINES[$best_phrase]}" "${remaining_args[@]}")"
+        return $?
+    fi
+
+    command "$first_word" "$@"
+}
+
+ak_enable_normal_custom_dispatchers() {
+    local first_word
+    for first_word in "${AK_NORMAL_CUSTOM_FIRST_WORDS[@]}"; do
+        unalias "$first_word" >/dev/null 2>&1 || true
+        eval "${first_word}() { __ak_dispatch_normal_custom_command ${first_word} \"\$@\"; }"
+    done
+}
+
 # Source enabled modules
 for module_file in "${AK_ROOT}/modules/"*.sh; do
     if [[ -f "$module_file" ]]; then
@@ -66,6 +175,9 @@ done
 if declare -f ak_source_custom_modules_with_conflict_guard >/dev/null 2>&1; then
     ak_source_custom_modules_with_conflict_guard
 fi
+
+ak_load_normal_custom_commands
+ak_enable_normal_custom_dispatchers
 
 if declare -f ak_collect_complex_command_paths >/dev/null 2>&1; then
     while IFS= read -r complex_command_file; do
