@@ -50,6 +50,45 @@ The central command is `ak`.
 - `ak add` -> Launch custom module wizard (module + commands + desc/usage/example).
 - `ak edit` -> Edit/delete your custom modules and commands.
 - `ak custom` -> Show custom module statuses (including official conflicts).
+- `ak pull <user/repo>` -> Pull only the remote `/custom/` folder into local sync cache.
+- `ak sync` -> Open a TUI package picker, detect conflicts, and selectively replace/import package commands.
+
+## Package Sync for Portable Custom Commands
+
+Aliaskit now supports moving your custom commands between machines in two steps:
+
+```bash
+ak pull username/repo-name
+ak sync
+```
+
+### Expected remote repo structure
+
+```text
+custom/
+  docs/
+    modules/
+      complex/
+  modules/
+    complex/
+```
+
+### How it works
+
+1. `ak pull` uses **Git sparse checkout** to download only the remote `custom/` folder.
+2. The package is cached under:
+   ```text
+   sync/<repo-name>/custom/
+   ```
+3. `ak sync` shows pulled packages in an `fzf` TUI.
+4. If the package contains commands/modules that already exist locally, Aliaskit shows a **multi-select conflict screen**.
+5. You choose exactly which conflicting commands to replace; unselected conflicts are skipped.
+6. New commands are imported and `custom/index.tsv` is regenerated automatically.
+
+### Sync metadata
+
+- Pulled package registry: `sync/state.json`
+- Last sync/import map: `custom/.sync-map.json`
 
 ## Configuration
 Aliaskit generates a `.aliaskit.conf` file in your home directory. Open it to toggle individual modules on or off:

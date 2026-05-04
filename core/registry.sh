@@ -8,15 +8,24 @@ AK_CUSTOM_DOC_MODULE_DIR="${AK_CUSTOM_ROOT}/docs/modules"
 AK_COMPLEX_MODULE_ROOT="${AK_CUSTOM_MODULE_DIR}/complex"
 AK_COMPLEX_DOC_ROOT="${AK_CUSTOM_DOC_MODULE_DIR}/complex"
 AK_CUSTOM_INDEX_FILE="${AK_CUSTOM_ROOT}/index.tsv"
+AK_SYNC_ROOT="${AK_ROOT}/sync"
+AK_SYNC_STATE_FILE="${AK_SYNC_ROOT}/state.json"
+AK_SYNC_MAP_FILE="${AK_CUSTOM_ROOT}/.sync-map.json"
 
 AK_RESERVED_AK_COMMANDS=(
     help search list modules config update reload stats version --version -v
-    add edit custom
+    add edit custom pull sync
 )
 
 ak_registry_bootstrap() {
-    mkdir -p "$AK_CUSTOM_MODULE_DIR" "$AK_CUSTOM_DOC_MODULE_DIR" "$AK_COMPLEX_MODULE_ROOT" "$AK_COMPLEX_DOC_ROOT"
+    mkdir -p "$AK_CUSTOM_MODULE_DIR" "$AK_CUSTOM_DOC_MODULE_DIR" "$AK_COMPLEX_MODULE_ROOT" "$AK_COMPLEX_DOC_ROOT" "$AK_SYNC_ROOT"
     touch "$AK_CUSTOM_INDEX_FILE"
+    if command -v jq >/dev/null 2>&1; then
+        [[ -f "$AK_SYNC_STATE_FILE" ]] || printf '{"packages":[]}\n' > "$AK_SYNC_STATE_FILE"
+        [[ -f "$AK_SYNC_MAP_FILE" ]] || printf '{"packages":{}}\n' > "$AK_SYNC_MAP_FILE"
+    else
+        touch "$AK_SYNC_STATE_FILE" "$AK_SYNC_MAP_FILE"
+    fi
 }
 
 ak_extract_module_name_from_file() {

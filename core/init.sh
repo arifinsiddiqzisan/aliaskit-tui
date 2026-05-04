@@ -43,6 +43,11 @@ if [[ -f "${AK_ROOT}/core/registry.sh" ]]; then
     ak_registry_bootstrap
 fi
 
+if [[ -f "${AK_ROOT}/core/sync_registry.sh" ]]; then
+    # shellcheck source=/dev/null
+    source "${AK_ROOT}/core/sync_registry.sh"
+fi
+
 if [[ -f "${AK_ROOT}/core/complex.sh" ]]; then
     # shellcheck source=/dev/null
     source "${AK_ROOT}/core/complex.sh"
@@ -198,7 +203,7 @@ ak() {
     shift
 
     case "$cmd" in
-        help|search|list|modules|config|update|reload|stats|version|--version|-v|add|addc|edit|custom)
+        help|search|list|modules|config|update|reload|stats|version|--version|-v|add|addc|edit|custom|pull|sync)
             if [[ "$cmd" == "version" || "$cmd" == "--version" || "$cmd" == "-v" ]]; then
                 bash "${AK_ROOT}/core/help.sh" "version"
             elif [[ -f "${AK_ROOT}/core/${cmd}.sh" ]]; then

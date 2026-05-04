@@ -17,6 +17,11 @@ if [[ -f "${AK_ROOT}/core/complex.sh" ]]; then
     source "${AK_ROOT}/core/complex.sh"
 fi
 
+if [[ -f "${AK_ROOT}/core/sync_registry.sh" ]]; then
+    # shellcheck source=/dev/null
+    source "${AK_ROOT}/core/sync_registry.sh"
+fi
+
 # Usage:
 # ak help -> list categories
 # ak help module_name -> list commands in category
@@ -56,6 +61,8 @@ function show_main_help() {
     echo "  ak addc                - Shortcut for 'ak add complex'"
     echo "  ak edit                - Edit/delete custom modules"
     echo "  ak custom              - Show custom module status list"
+    echo "  ak pull <repo>         - Pull only /custom from a GitHub repo into sync cache"
+    echo "  ak sync                - Import a pulled package into your active custom workspace"
     echo "  ak stats               - Show community stats"
     echo ""
     
@@ -415,6 +422,12 @@ case "$COMMAND" in
         ;;
     custom)
         bash "${AK_ROOT}/core/custom.sh"
+        ;;
+    pull)
+        bash "${AK_ROOT}/core/pull.sh" "$SUBCMD"
+        ;;
+    sync)
+        bash "${AK_ROOT}/core/sync.sh" "$SUBCMD"
         ;;
     update)
         bash "${AK_ROOT}/update.sh" "$SUBCMD"
