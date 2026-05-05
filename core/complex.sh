@@ -57,6 +57,17 @@ sys.stdout.write(haystack.replace(needle, replacement))
 PY
 }
 
+ak_complex_shell_escape_fragment() {
+    local fragment="$1"
+    python3 - "$fragment" <<'PY'
+import shlex
+import sys
+
+fragment = sys.argv[1]
+sys.stdout.write(' '.join(shlex.quote(part) for part in shlex.split(fragment)))
+PY
+}
+
 ak_complex_param_keys_from_template() {
     local template="$1"
     local kind="$2"
@@ -342,7 +353,7 @@ __ak_complex_exec() {
     fi
 
     local final_command="$genuine_command"
-    local replacement quoted mapped inner ext base output_value
+    local replacement quoted mapped inner ext base output_value replacement_kind
     local type_value="${provided[type]:-}"
 
     while IFS= read -r token; do
@@ -350,11 +361,13 @@ __ak_complex_exec() {
         name=$(ak_complex_placeholder_name "$token")
         inner=$(ak_complex_placeholder_inner "$token")
         replacement="${provided[$name]:-}"
+        replacement_kind="post"
 
         if [[ $(ak_complex_placeholder_kind "$token") == "pre" ]]; then
             mapped=$(jq -r --arg param "$name" --arg key "$replacement" '.pre_parameters[$param][$key] // empty' "$parameters_file")
             if [[ -n "$mapped" ]]; then
                 replacement="$mapped"
+                replacement_kind="pre_mapped"
             fi
         else
             ext=$(ak_complex_placeholder_extension "$token")
@@ -380,7 +393,11 @@ __ak_complex_exec() {
             fi
         fi
 
-        printf -v quoted '%q' "$replacement"
+        if [[ "$replacement_kind" == "pre_mapped" ]]; then
+            quoted=$(ak_complex_shell_escape_fragment "$replacement")
+        else
+            printf -v quoted '%q' "$replacement"
+        fi
         final_command=$(ak_complex_replace_literal "$final_command" "$token" "$quoted")
     done < <(ak_complex_list_placeholders "$genuine_command")
 
